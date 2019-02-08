@@ -1,0 +1,93 @@
+# Read the file with SMD(yi) and Variance (v1i, v2i) and co-variance(cov)
+> dat<-read.csv(file="/Users/aneesha/Desktop/others_work/G.P./escal.final.csv", header=T)
+> str(dat)
+data.frame':	22 obs. of  20 variables:
+ $ Trial   : int  1 1 2 2 3 3 4 4 5 5 ...
+ $ Study   : Factor w/ 9 levels "Fonseca et al 2015",..: 1 1 1 1 2 2 3 3 4 4 ...
+ $ Year    : int  2015 2015 2015 2015 2007 2007 2007 2007 2012 2012 ...
+ $ Outcome : Factor w/ 2 levels "CAL","PPD": 1 2 1 2 1 2 1 2 1 2 ...
+ $ Baseline: num  2.56 2.23 2.49 2.25 7.34 ...
+ $ Mean_T  : num  0.12 0.27 0.13 0.13 2.62 1.62 0.17 0.3 1.55 1.81 ...
+ $ SD_T    : num  0.891 0.46 0.588 0.36 1.436 ...
+ $ N_T     : int  15 15 14 14 17 17 25 25 14 14 ...
+ $ Mean_C  : num  0.19 0.19 0.19 0.27 1.47 0.75 0.12 0.45 1.54 1.66 ...
+ $ SD_C    : num  0.709 0.51 0.875 0.46 0.978 ...
+ $ N_C     : int  15 15 13 13 17 17 23 23 14 14 ...
+ $ Ni      : int  30 30 27 27 34 34 48 48 28 28 ...
+ $ Timing  : Factor w/ 2 levels "Post-therapy",..: 2 2 2 2 2 2 2 2 1 1 ...
+ $ SRP_Type: Factor w/ 2 levels "FDIS","Qu": 1 1 2 2 1 1 2 2 2 2 ...
+ $ yi      : num  -0.0846 0.1603 -0.0786 -0.3303 0.9137 ...
+ $ v1i     : num  0.1335 0.0251 0.1485 0.0251 0.1299 ...
+ $ v2i     : num  0.0251 0.1338 0.0251 0.1504 0.1251 ...
+ $ cov     : num  0.0251 0.0251 0.0251 0.0251 0.1251 ...
+ $ r       : num  0.188 0.188 0.188 0.188 0.934 ...
+ $ vi      : num  0.133 0.134 0.148 0.15 0.13 ...
+
+
+# Make the variance covariance matrix
+V <- lapply(split(dat[,c("v1i", "v2i")], dat$Trial), as.matrix)
+V <- bldiag(V)
+
+# Apply my multi-variate model
+res> rma.mv(yi, V, mods =~ (Outcome-1)*Baseline+(Outcome-1)*SRP_Type+(Outcome-1)*Timing, data=dat, method="REML", intercept=FALSE,struct="CS", random=list(~1|Study))
+
+Multivariate Meta-Analysis Model (k = 22; method: REML)
+
+Variance Components: 
+
+            estim    sqrt  nlvls  fixed  factor
+sigma^2    0.1030  0.3210      9     no   Study
+
+Test for Residual Heterogeneity: 
+QE(df = 14) = 88.5345, p-val < .0001
+
+Test of Moderators (coefficient(s) 1,2,3,4,5,6,7,8): 
+QM(df = 8) = 150.6352, p-val < .0001
+
+Model Results:
+
+                              estimate      se     zval    pval    ci.lb    ci.ub     
+OutcomeCAL                      0.1708  0.5571   0.3065  0.7592  -0.9211   1.2626     
+OutcomePPD                      1.1690  0.4584   2.5499  0.0108   0.2704   2.0675    *
+Baseline                        0.0095  0.0564   0.1683  0.8664  -0.1010   0.1200     
+SRP_TypeQu                      0.2193  0.3270   0.6705  0.5025  -0.4217   0.8602     
+TimingPre-therapy               0.1287  0.3557   0.3619  0.7175  -0.5685   0.8260     
+OutcomePPD:Baseline             0.1131  0.0174   6.4916  <.0001   0.0790   0.1473  ***
+OutcomePPD:SRP_TypeQu          -1.2545  0.2411  -5.2039  <.0001  -1.7270  -0.7820  ***
+OutcomePPD:TimingPre-therapy   -1.1772  0.1561  -7.5420  <.0001  -1.4832  -0.8713  ***
+
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1 
+
+#Null model with study level random factor only
+> null<-rma.mv(yi, V, mods =~ (Outcome-1),data=dat, method="REML", intercept=FALSE,struct="CS", random=list(~1|Study))
+
+> null
+
+Multivariate Meta-Analysis Model (k = 22; method: REML)
+
+Variance Components: 
+
+            estim    sqrt  nlvls  fixed  factor
+sigma^2    0.1138  0.3373      9     no   Study
+
+Test for Residual Heterogeneity: 
+QE(df = 20) = 201.6853, p-val < .0001
+
+Test of Moderators (coefficient(s) 1,2): 
+QM(df = 2) = 40.4392, p-val < .0001
+
+Model Results:
+
+            estimate      se    zval    pval   ci.lb   ci.ub    
+OutcomeCAL    0.3220  0.1527  2.1091  0.0349  0.0228  0.6212   *
+OutcomePPD    0.4281  0.1539  2.7820  0.0054  0.1265  0.7297  **
+
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1 
+
+# Comparison of full and null models
+> anova(res,null)
+        df      AIC      BIC     AICc   logLik      LRT   pval       QE
+Full     9  94.1651  99.9166 139.1651 -38.0825                  88.5345
+Reduced  3 185.2272 188.2144 186.7272 -89.6136 103.0621 <.0001 201.6853
